@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import axios from "axios";
+import { API_BASE_URL } from "../Constants";
 
 interface Faculty {
   id: number;
@@ -26,42 +28,83 @@ interface FacultyApprovalPanelProps {
   onResponse: (response: "approved" | "denied") => void;
 }
 
-export default function FacultyApprovalPanel({ 
-  visitor, 
+export default function FacultyApprovalPanel({
+  visitor,
   faculty,
-  onResponse 
+  onResponse
 }: FacultyApprovalPanelProps) {
   const [loading, setLoading] = useState(false);
   const [simulationState, setSimulationState] = useState<"waiting" | "receiving" | "received">("waiting");
-  
+
   // Simulate the faculty reviewing the notification
   const simulateFacultyReview = () => {
     setSimulationState("receiving");
-    
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/notifications/create/`, {
+        "management_id": visitor?.whom_to_send,
+        "visitor_id": visitor?.id,
+        "title": "This man came to visit you",
+        "message": "Please accept"
+      }, {
+      });
+
+      const notification = response.data;
+      setSimulationState("received");
+
+    } catch (err) {
+      console.log(err)
+    }
+
     // Simulate network delay
     setTimeout(() => {
       setSimulationState("received");
     }, 2000);
   };
-  
+
   // Handle approval click
-  const handleApprove = () => {
+  const handleApprove = async () => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/visitors/${visitor?.id}/update_status/`, {
+        "status": "APPROVED",
+        "denial_reason": ""
+      }, {
+      });
+
+      const savedAlert = response.data;
       onResponse("approved");
+
+    } catch (err) {
+      console.log(err)
+    }
+    setTimeout(() => {
       setLoading(false);
     }, 1000);
   };
-  
+
   // Handle denial click
   const handleDeny = () => {
     setLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/visitors/${visitor?.id}/update_status/`, {
+        "status": "DENIED",
+        "denial_reason": "No available appointment slot"
+      }, {
+      });
+
+      const savedAlert = response.data;
+      onResponse("approved");
+
+    } catch (err) {
+      console.log(err)
+    }
     setTimeout(() => {
       onResponse("denied");
       setLoading(false);
     }, 1000);
   };
-  
+
   return (
     <div className="flex flex-col items-center p-4 gap-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
@@ -79,22 +122,22 @@ export default function FacultyApprovalPanel({
               <div className="flex items-center gap-2 mb-4">
                 <div className={cn(
                   "h-3 w-3 rounded-full",
-                  simulationState === "waiting" ? "bg-yellow-500" : 
-                  simulationState === "receiving" ? "bg-blue-500 animate-pulse" :
-                  "bg-green-500"
+                  simulationState === "waiting" ? "bg-yellow-500" :
+                    simulationState === "receiving" ? "bg-blue-500 animate-pulse" :
+                      "bg-green-500"
                 )}></div>
                 <span>
-                  {simulationState === "waiting" ? "Waiting for faculty to view..." : 
-                   simulationState === "receiving" ? "Faculty reviewing notification..." :
-                   "Faculty has seen the notification"}
+                  {simulationState === "waiting" ? "Waiting for faculty to view..." :
+                    simulationState === "receiving" ? "Faculty reviewing notification..." :
+                      "Faculty has seen the notification"}
                 </span>
               </div>
-              
+
               {simulationState === "waiting" && (
-                <Button 
-                  onClick={simulateFacultyReview} 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  onClick={simulateFacultyReview}
+                  variant="outline"
+                  size="sm"
                   className="w-full"
                 >
                   Simulate Faculty Viewing
@@ -102,7 +145,7 @@ export default function FacultyApprovalPanel({
               )}
             </CardContent>
           </Card>
-          
+
           <div className="p-4 border rounded-lg bg-muted/50">
             <h4 className="text-sm font-medium mb-2">In a real system:</h4>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
@@ -113,7 +156,7 @@ export default function FacultyApprovalPanel({
             </ul>
           </div>
         </div>
-        
+
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Faculty View</h3>
           <Card>
@@ -123,8 +166,8 @@ export default function FacultyApprovalPanel({
             <CardContent className="space-y-4">
               <div className="flex gap-4 items-center">
                 <div className="h-16 w-16 rounded-full overflow-hidden bg-muted">
-                  <img 
-                    src={visitor.photoUrl || "/placeholder.svg"} 
+                  <img
+                    src={visitor.photoUrl || "/placeholder.svg"}
                     alt={visitor.name}
                     className="h-full w-full object-cover"
                   />
@@ -136,15 +179,15 @@ export default function FacultyApprovalPanel({
                   </p>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Purpose of Visit:</h4>
                 <p className="text-sm p-2 bg-muted rounded-md">{visitor.purpose}</p>
               </div>
             </CardContent>
             <CardFooter className="flex gap-2 pt-0">
-              <Button 
-                onClick={handleApprove} 
+              <Button
+                onClick={handleApprove}
                 disabled={simulationState !== "received" || loading}
                 className="flex-1"
                 size="sm"
@@ -152,9 +195,9 @@ export default function FacultyApprovalPanel({
                 <CheckCircle className="mr-2 h-4 w-4" />
                 Approve
               </Button>
-              <Button 
-                onClick={handleDeny} 
-                variant="outline" 
+              <Button
+                onClick={handleDeny}
+                variant="outline"
                 disabled={simulationState !== "received" || loading}
                 className="flex-1"
                 size="sm"
@@ -164,13 +207,13 @@ export default function FacultyApprovalPanel({
               </Button>
             </CardFooter>
           </Card>
-          
+
           <div className="rounded-lg border p-4 flex items-center gap-3">
             <Clock className="h-5 w-5 text-yellow-500" />
             <div className="text-sm">
               <p className="font-medium">Pending Response</p>
               <p className="text-muted-foreground">
-                {simulationState === "received" ? 
+                {simulationState === "received" ?
                   "Faculty is reviewing your request..." :
                   "Waiting for faculty to view notification..."}
               </p>
